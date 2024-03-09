@@ -27,6 +27,10 @@ impl Hexagon {
         self.origin
     }
 
+    pub fn radius(&self) -> Distance {
+        self.radius
+    }
+
     pub fn ring(&self, radius: Distance) -> Option<Ring> {
         if radius <= 0 || radius > self.radius {
             None

@@ -1,17 +1,13 @@
-mod board;
-mod hexagon;
-mod line;
-mod position;
-mod ring;
-mod segment;
+mod grid;
+mod puzzle;
 
-use board::generate_good;
-use rand::{rngs::StdRng, SeedableRng, thread_rng};
+use puzzle::generator::generate_good;
+use rand::{rngs::StdRng, thread_rng, SeedableRng};
 
 fn main() {
     let mut rng = thread_rng();
     // let mut rng = StdRng::seed_from_u64(22);
-    generate_good(&mut rng, 2);
+    generate_good(&mut rng, 3);
 }
 
 #[cfg(test)]

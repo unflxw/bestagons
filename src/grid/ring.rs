@@ -1,5 +1,5 @@
-use crate::position::{Direction, Distance, Position};
-use crate::segment::Segment;
+use super::segment::Segment;
+use super::{Direction, Distance, Position};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ring {

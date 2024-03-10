@@ -1,3 +1,8 @@
+pub mod hexagon;
+pub mod line;
+pub mod ring;
+pub mod segment;
+
 use std::ops::{Add, Mul, Neg, Sub};
 
 pub type Coordinate = i32;

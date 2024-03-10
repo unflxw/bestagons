@@ -1,5 +1,5 @@
-use crate::line::{Line, LineIterator};
-use crate::position::{Direction, Distance, Position};
+use super::line::{Line, LineIterator};
+use super::{Direction, Distance, Position};
 
 // A bounded set of points that stretch from a given start point
 // in a given direction.

@@ -1,7 +1,7 @@
-use crate::line::Line;
-use crate::position::{Direction, Distance, Position};
-use crate::ring::{Ring, RingIterator};
-use crate::segment::Segment;
+use super::line::Line;
+use super::ring::{Ring, RingIterator};
+use super::segment::Segment;
+use super::{Direction, Distance, Position};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Hexagon {

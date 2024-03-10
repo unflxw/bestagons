@@ -1,7 +1,7 @@
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{Rng, seq::SliceRandom};
 use std::collections::HashMap;
 use std::fmt::{Display, Write};
-use std::ops::{BitAnd, Sub};
+use std::ops::{Add, BitAnd, Sub};
 
 use crate::hexagon::{Hexagon, HexagonError};
 use crate::position::{Direction, Distance, Position};
@@ -22,8 +22,12 @@ const CELLS: [Cell; 3] = {
 };
 
 impl Cell {
-    pub fn random() -> Self {
-        *CELLS.choose(&mut thread_rng()).unwrap()
+    pub fn random(rng: &mut impl Rng) -> Self {
+        *CELLS.choose(rng).unwrap()
+    }
+
+    pub fn all() -> [Cell; 3] {
+        CELLS.clone()
     }
 }
 
@@ -39,6 +43,28 @@ impl Clue {
 
     pub fn zero() -> Self {
         ZERO.clone()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.red() == 0 && self.green() == 0 && self.blue() == 0
+    }
+
+    pub fn count(&self) -> Count {
+        self.red() + self.blue() + self.green()
+    }
+
+    // Returns the cell type with the lowest non-zero value.
+    pub fn min_cell(&self) -> Option<Cell> {
+        Cell::all().into_iter()
+            .filter(|cell| self.cell(*cell) > 0)
+            .min_by_key(|cell| self.cell(*cell))
+    }
+
+    // Returns the cell type with the highest non-zero value.
+    pub fn max_cell(&self) -> Option<Cell> {
+        Cell::all().into_iter()
+            .filter(|cell| self.cell(*cell) > 0)
+            .max_by_key(|cell| self.cell(*cell))
     }
 
     pub fn from_cells(cells: impl Iterator<Item = Cell>) -> Self {
@@ -71,8 +97,30 @@ impl Clue {
         self.2
     }
 
+    pub fn cell(&self, cell: Cell) -> Count {
+        use Cell::*;
+
+        match cell {
+            Red => self.red(),
+            Green => self.green(),
+            Blue => self.blue(),
+        }
+    }
+
     pub fn hint(&self) -> Hint {
         Hint(self.red() > 0, self.green() > 0, self.blue() > 0)
+    }
+}
+
+impl Add for Clue {
+    type Output = Clue;
+
+    fn add(self, other: Self) -> Self::Output {
+        Clue(
+            self.red() + other.red(),
+            self.green() + other.green(),
+            self.blue() + other.blue(),
+        )
     }
 }
 
@@ -114,11 +162,11 @@ impl Board {
         Ok(board)
     }
 
-    pub fn random(radius: Distance) -> Result<Self, HexagonError> {
+    pub fn random(rng: &mut impl Rng, radius: Distance) -> Result<Self, HexagonError> {
         let mut board = Self::new(radius)?;
 
         for position in board.hexagon() {
-            board.insert(position, Cell::random())
+            board.insert(position, Cell::random(rng))
         }
 
         Ok(board)
@@ -198,7 +246,7 @@ impl Board {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Puzzle {
     board: Board,
     clues: HashMap<(Direction, Distance), Clue>,
@@ -313,6 +361,10 @@ impl Hint {
         Hint(true, true, true)
     }
 
+    fn none() -> Self {
+        Hint(false, false, false)
+    }
+
     fn red(&self) -> bool {
         self.0
     }
@@ -325,6 +377,15 @@ impl Hint {
         self.2
     }
 
+    fn cell(&self, cell: Cell) -> bool {
+        use Cell::*;
+        match cell {
+            Red => self.red(),
+            Green => self.green(),
+            Blue => self.blue(),
+        }
+    }
+
     fn solution(&self) -> Option<Cell> {
         use Cell::*;
 
@@ -334,6 +395,14 @@ impl Hint {
             (false, false, true) => Some(Blue),
             _ => None,
         }
+    }
+
+    fn clue(&self) -> Clue {
+        Clue(
+            if self.red() { 1 } else { 0 },
+            if self.green() { 1 } else { 0 },
+            if self.blue() { 1 } else { 0 },
+        )
     }
 }
 
@@ -363,12 +432,93 @@ impl Solver {
         }
     }
 
-    pub fn solve_once(&mut self) {
+    pub fn solve_hints(&mut self) -> bool {
+        let mut did_solve: bool = false;
         for (position, hint) in self.computed_hints() {
             if let Some(cell) = hint.solution() {
-                self.solution.insert(position, cell);
+                if !self.solution.cells.contains_key(&position) {
+                    self.solution.insert(position, cell);
+                    did_solve = true;
+                    println!("Solved hint for {position:?} to {cell:?}")
+                }
             }
         }
+
+        if did_solve {
+            println!("Done solving hints")
+        } else {
+            println!("Could not solve hints")
+        }
+
+        did_solve
+    }
+
+    pub fn solve_clues(&mut self) -> bool {
+        let mut did_solve: bool = false;
+
+        let hints = self.computed_hints();
+        let mut new: HashMap<Position, Cell> = HashMap::new();
+
+        for ((direction, distance), computed_clue) in self.computed_clues() {
+            let segment = self
+                .puzzle
+                .board()
+                .hexagon()
+                .segment(distance, direction)
+                .unwrap();
+
+            let mut hinted_clue = Clue::zero();
+
+            for position in segment {
+                if self.solution.cells.contains_key(&position) {
+                    continue;
+                }
+
+                hinted_clue = hinted_clue + hints.get(&position).unwrap().clue()
+            }
+
+            for cell in Cell::all() {
+                if hinted_clue.cell(cell) == computed_clue.cell(cell) {
+                    for position in segment {
+                        if self.solution.cells.contains_key(&position) {
+                            continue;
+                        }
+
+                        if hints.get(&position).unwrap().cell(cell) {
+                            new.insert(position, cell);
+                            did_solve = true;
+                            println!("Solved clue ({direction:?}, {distance:?}) for {position:?} to {cell:?}")
+                        }
+                    }
+                }
+            }
+        }
+
+        for (position, cell) in new {
+            self.solution.insert(position, cell);
+        }
+
+        if did_solve {
+            println!("Done solving clues")
+        } else {
+            println!("Could not solve clues")
+        }
+
+        did_solve
+    }
+
+    pub fn solve(&mut self) -> bool {
+        while self.solve_hints() || self.solve_clues() {}
+
+        let is_solved = self.solution.is_solved();
+
+        if !is_solved {
+            println!("Could not solve")
+        } else {
+            println!("Solved")
+        }
+
+        is_solved
     }
 
     pub fn solution(&self) -> &Board {
@@ -380,13 +530,14 @@ impl Solver {
 
         for ((direction, distance), clue) in self.computed_clues() {
             let clue_hint = clue.hint();
-            for position in self
+            let segment = self
                 .puzzle
                 .board()
                 .hexagon()
                 .segment(distance, direction)
-                .unwrap()
-            {
+                .unwrap();
+
+            for position in segment {
                 let hint = hints.get(&position).cloned().unwrap_or(Hint::any());
                 hints.insert(position, hint & clue_hint);
             }
@@ -406,4 +557,91 @@ impl Solver {
 
         clues
     }
+}
+
+pub fn generate(rng: &mut impl Rng, radius: Distance) -> bool {
+    let mut solution = Puzzle::with_clues(Board::random(rng, radius).unwrap());
+    println!("solution:\n{solution}");
+    let mut puzzle = solution.clone();
+    puzzle.clear();
+
+    let mut solver = Solver::new(puzzle);
+    let no_solved_clues = solver.computed_clues().into_iter().all(|(_key, clue)| {
+        [clue.red(), clue.green(), clue.blue()].into_iter().filter(|count| *count > 0).count() > 1
+    });
+
+    if !no_solved_clues {
+        println!("Not generating puzzle, has solved clues");
+        return false;
+    }
+
+    let added_clue_limit = ((radius - 1) * (radius - 2) / 2).max(0) as usize;
+    let mut added_clue_count = 0;
+
+    while !solver.solve() {
+        let computed_clues = solver.computed_clues();
+        // Find the computed clue with the lowest total count
+        let ((direction, distance), clue) = computed_clues
+            .iter()
+            .filter(|(key, clue)| !clue.is_empty())
+            .max_by_key(|(key, clue)| clue.count())
+            .unwrap();
+
+        // Find the cell type with the lowest value in the clue
+        let max_cell = clue.max_cell().unwrap();
+
+        // Find one of the cells of that type in the solution
+        let (position, _) = solution
+            .board
+            .segment(*distance, *direction)
+            .unwrap()
+            .find(|(position, cell)| {
+                !solver.solution.cells.contains_key(position) && cell.clone() == Some(max_cell)
+            })
+            .unwrap();
+
+        solver.puzzle.board.insert(position, max_cell);
+        solver.solution.insert(position, max_cell);
+
+        println!("Added clue {max_cell:?} at {position:?}");
+        added_clue_count += 1;
+        if added_clue_count > added_clue_limit {
+            println!("Not generating puzzle, too many added clues");
+            return false;
+        }
+    }
+
+    let mut solved = Puzzle::with_clues(solver.solution().clone());
+    println!("solved solution:\n{solved}");
+    println!("puzzle:\n{}", solver.puzzle);
+
+    let mut resolver = Solver::new(solver.puzzle.clone());
+    let no_solved_clues = resolver.computed_clues().into_iter().all(|(_key, clue)| {
+        [clue.red(), clue.green(), clue.blue()].into_iter().filter(|count| *count > 0).count() > 1
+    });
+
+    println!("re-solving:");
+
+    let mut requires_clue_solving = false;
+    let mut complexity = 0;
+
+    while !resolver.solution.is_solved() {
+        if resolver.solve_hints() {
+            complexity += 1;
+            continue;
+        }
+        resolver.solve_clues();
+        complexity += 2;
+        requires_clue_solving = true;
+    }
+
+    println!("requires clue solving? {requires_clue_solving}");
+    println!("complexity: {complexity}");
+    println!("no solved clues? {no_solved_clues}");
+
+    no_solved_clues && requires_clue_solving
+}
+
+pub fn generate_good(rng: &mut impl Rng, radius: Distance) {
+    while !generate(rng, radius) {}
 }

@@ -1,4 +1,4 @@
-use crate::grid::Distance;
+use crate::grid::{Distance};
 use rand::Rng;
 
 use super::board::Board;
@@ -7,6 +7,11 @@ use super::solver::Solver;
 
 pub fn generate(rng: &mut impl Rng, radius: Distance) -> bool {
     let mut solution = Puzzle::with_clues(Board::random(rng, radius).unwrap());
+    generate_from_solution(solution)
+}
+
+pub fn generate_from_solution(solution: Puzzle) -> bool {
+    let radius = solution.board().hexagon().radius();
     println!("solution:\n{solution}");
     let mut puzzle = solution.clone();
     puzzle.clear();

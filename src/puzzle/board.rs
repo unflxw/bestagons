@@ -1,7 +1,7 @@
 use rand::Rng;
 use std::collections::HashMap;
 
-use super::{Cell, Clue};
+use super::{Cell, Clue, Hint};
 use crate::grid::hexagon::{Hexagon, HexagonError};
 use crate::grid::{Direction, Distance, Position};
 
@@ -36,6 +36,16 @@ impl Board {
 
         for position in board.hexagon() {
             board.insert(position, Cell::random(rng))
+        }
+
+        Ok(board)
+    }
+
+    pub fn random_from_hints(rng: &mut impl Rng, radius: Distance, hints: impl Iterator<Item = (Position, Hint)>) -> Result<Self, HexagonError> {
+        let mut board = Self::new(radius)?;
+
+        for (position, hint) in hints {
+            board.insert(position, hint.random(rng).unwrap())
         }
 
         Ok(board)

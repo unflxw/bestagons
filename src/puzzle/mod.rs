@@ -2,8 +2,9 @@ pub mod board;
 pub mod generator;
 pub mod puzzle;
 pub mod solver;
+pub mod heart;
 
-use rand::{seq::SliceRandom, Rng};
+use rand::{seq::SliceRandom, seq::IteratorRandom, Rng};
 use std::ops::{Add, BitAnd, Sub};
 
 type Count = u32;
@@ -160,6 +161,18 @@ impl Hint {
 
     fn blue(&self) -> bool {
         self.2
+    }
+
+    fn random(&self, rng: &mut impl Rng) -> Option<Cell> {
+        use Cell::*;
+        [
+            (Red, self.red()),
+            (Green, self.green()),
+            (Blue, self.blue())
+        ].into_iter()
+            .filter(|(cell, hint)| *hint)
+            .map(|(cell, hint)| cell)
+            .choose(rng)
     }
 
     fn cell(&self, cell: Cell) -> bool {

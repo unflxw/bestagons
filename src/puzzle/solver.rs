@@ -14,10 +14,7 @@ pub struct Solver {
 impl Solver {
     pub fn new(puzzle: Puzzle) -> Self {
         let solution = puzzle.board().clone();
-        Solver {
-            puzzle,
-            solution: solution,
-        }
+        Solver { puzzle, solution }
     }
 
     pub fn puzzle(&self) -> &Puzzle {
@@ -43,15 +40,8 @@ impl Solver {
                 if !self.solution.cells().contains_key(&position) {
                     self.solution.insert(position, cell);
                     did_solve = true;
-                    println!("Solved hint for {position:?} to {cell:?}")
                 }
             }
-        }
-
-        if did_solve {
-            println!("Done solving hints")
-        } else {
-            println!("Could not solve hints")
         }
 
         did_solve
@@ -91,7 +81,6 @@ impl Solver {
                         if hints.get(&position).unwrap().cell(cell) {
                             new.insert(position, cell);
                             did_solve = true;
-                            println!("Solved clue ({direction:?}, {distance:?}) for {position:?} to {cell:?}")
                         }
                     }
                 }
@@ -102,27 +91,13 @@ impl Solver {
             self.solution.insert(position, cell);
         }
 
-        if did_solve {
-            println!("Done solving clues")
-        } else {
-            println!("Could not solve clues")
-        }
-
         did_solve
     }
 
     pub fn solve(&mut self) -> bool {
         while self.solve_hints() || self.solve_clues() {}
 
-        let is_solved = self.solution.is_solved();
-
-        if !is_solved {
-            println!("Could not solve")
-        } else {
-            println!("Solved")
-        }
-
-        is_solved
+        self.solution.is_solved()
     }
 
     pub fn computed_hints(&self) -> HashMap<Position, Hint> {
@@ -156,5 +131,32 @@ impl Solver {
         }
 
         clues
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{grid::ring::Ring, puzzle::board::Board};
+
+    #[test]
+    fn test_solver() {
+        let mut board = Board::new(2).unwrap();
+
+        board.insert(Position::zero(), Cell::Red);
+
+        for position in Ring::zero(1).unwrap() {
+            board.insert(position, Cell::Green);
+        }
+
+        for position in Ring::zero(2).unwrap() {
+            board.insert(position, Cell::Blue);
+        }
+
+        let mut puzzle = Puzzle::with_clues(board);
+        puzzle.clear();
+        assert!(puzzle.board().cells().is_empty());
+        let mut solver = Solver::new(puzzle);
+        assert!(solver.solve());
     }
 }

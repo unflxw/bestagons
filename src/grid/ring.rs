@@ -21,6 +21,10 @@ impl Ring {
         }
     }
 
+    pub fn zero(radius: Distance) -> Result<Self, RingError> {
+        Self::new(Position::zero(), radius)
+    }
+
     pub fn corner(&self, direction: Direction) -> Position {
         self.origin + (direction.position() * self.radius)
     }

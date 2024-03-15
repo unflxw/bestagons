@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Write};
 
+use rand::Rng;
+
 use super::board::Board;
 use super::{Cell, Clue};
 use crate::grid::{Direction, Distance};
@@ -113,5 +115,17 @@ impl Display for Puzzle {
         }
 
         Ok(())
+    }
+}
+
+pub type GeneratorFn<T> = Box<dyn Fn(&mut T) -> Puzzle>;
+
+pub trait Generator<T: Rng> {
+    fn generate(&self, rng: &mut T) -> Puzzle;
+}
+
+impl<T: Rng> Generator<T> for GeneratorFn<T> {
+    fn generate(&self, rng: &mut T) -> Puzzle {
+        self(rng)
     }
 }

@@ -1,13 +1,31 @@
 mod grid;
 mod puzzle;
 
-use puzzle::heart::generate_good_heart;
-use rand::{rngs::StdRng, thread_rng, SeedableRng};
+use puzzle::board::Board;
+use rand::thread_rng;
+
+use crate::puzzle::{
+    puzzle::GeneratorFn,
+    refiner::Refiner,
+    validator::{
+        MaximumSolvedClues, MaximumSolvedPositions, RequireClueSolving, RequireHintSolving,
+        Validator,
+    },
+};
 
 fn main() {
     let mut rng = thread_rng();
-    // let mut rng = StdRng::seed_from_u64(22);
-    generate_good_heart(&mut rng);
+    // let generator = HeartGenerator;
+    let generator: GeneratorFn<_> = Board::generator(5);
+    let validator: Validator = Validator::new(vec![
+        Box::new(RequireClueSolving(true)),
+        Box::new(RequireHintSolving(true)),
+        Box::new(MaximumSolvedClues(0)),
+        Box::new(MaximumSolvedPositions(0)),
+    ]);
+    let refiner = Refiner::new(validator);
+    let puzzle = refiner.refined(&mut rng, generator);
+    println!("{puzzle}");
 }
 
 #[cfg(test)]

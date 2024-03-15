@@ -23,6 +23,10 @@ impl Hexagon {
         }
     }
 
+    pub fn zero(radius: Distance) -> Result<Self, HexagonError> {
+        Self::new(Position::zero(), radius)
+    }
+
     pub fn origin(&self) -> Position {
         self.origin
     }
@@ -60,9 +64,8 @@ impl Hexagon {
     }
 
     pub fn segments(&self, direction: Direction) -> impl Iterator<Item = (Distance, Segment)> {
-        let hexagon = self.clone();
+        let hexagon = *self;
         (-self.radius..=self.radius)
-            .into_iter()
             .map(move |distance| (distance, hexagon.segment(distance, direction).unwrap()))
     }
 }

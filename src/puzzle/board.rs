@@ -1,6 +1,8 @@
 use rand::Rng;
 use std::collections::HashMap;
 
+use super::puzzle::GeneratorFn;
+use super::puzzle::Puzzle;
 use super::{Cell, Clue, Hint};
 use crate::grid::hexagon::{Hexagon, HexagonError};
 use crate::grid::{Direction, Distance, Position};
@@ -14,7 +16,7 @@ pub struct Board {
 impl Board {
     pub fn new(radius: Distance) -> Result<Self, HexagonError> {
         Ok(Board {
-            hexagon: Hexagon::new(Position::zero(), radius)?,
+            hexagon: Hexagon::zero(radius)?,
             cells: HashMap::new(),
         })
     }
@@ -41,7 +43,15 @@ impl Board {
         Ok(board)
     }
 
-    pub fn random_from_hints(rng: &mut impl Rng, radius: Distance, hints: impl Iterator<Item = (Position, Hint)>) -> Result<Self, HexagonError> {
+    pub fn generator<T: Rng>(radius: Distance) -> GeneratorFn<T> {
+        Box::new(move |rng: &mut T| Puzzle::with_clues(Board::random(rng, radius).unwrap()))
+    }
+
+    pub fn random_from_hints(
+        rng: &mut impl Rng,
+        radius: Distance,
+        hints: impl Iterator<Item = (Position, Hint)>,
+    ) -> Result<Self, HexagonError> {
         let mut board = Self::new(radius)?;
 
         for (position, hint) in hints {
@@ -49,6 +59,18 @@ impl Board {
         }
 
         Ok(board)
+    }
+
+    pub fn generator_from_hints<T: Rng>(
+        radius: Distance,
+        hints: impl Iterator<Item = (Position, Hint)>,
+    ) -> GeneratorFn<T> {
+        let hints = hints.collect::<Vec<_>>();
+        Box::new(move |rng: &mut T| {
+            Puzzle::with_clues(
+                Board::random_from_hints(rng, radius, hints.clone().into_iter()).unwrap(),
+            )
+        })
     }
 
     pub fn is_solved(&self) -> bool {
@@ -114,12 +136,7 @@ impl Board {
         self.normalized_segments().map(|(key, segment)| {
             (
                 key,
-                Clue::from_cells(
-                    segment
-                        .map(|(_position, cell)| cell)
-                        .filter(Option::is_some)
-                        .map(Option::unwrap),
-                ),
+                Clue::from_cells(segment.filter_map(|(_position, cell)| cell)),
             )
         })
     }

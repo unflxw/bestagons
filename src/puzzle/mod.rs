@@ -1,10 +1,11 @@
 pub mod board;
-pub mod generator;
-pub mod puzzle;
-pub mod solver;
 pub mod heart;
+pub mod puzzle;
+pub mod refiner;
+pub mod solver;
+pub mod validator;
 
-use rand::{seq::SliceRandom, seq::IteratorRandom, Rng};
+use rand::{seq::IteratorRandom, seq::SliceRandom, Rng};
 use std::ops::{Add, BitAnd, Sub};
 
 type Count = u32;
@@ -28,7 +29,7 @@ impl Cell {
     }
 
     pub fn all() -> [Cell; 3] {
-        CELLS.clone()
+        CELLS
     }
 }
 
@@ -43,7 +44,7 @@ impl Clue {
     }
 
     pub fn zero() -> Self {
-        ZERO.clone()
+        ZERO
     }
 
     pub fn is_empty(&self) -> bool {
@@ -113,6 +114,14 @@ impl Clue {
     pub fn hint(&self) -> Hint {
         Hint(self.red() > 0, self.green() > 0, self.blue() > 0)
     }
+
+    pub fn is_solved(&self) -> bool {
+        [self.red(), self.green(), self.blue()]
+            .into_iter()
+            .filter(|count| *count > 0)
+            .count()
+            == 1
+    }
 }
 
 impl Add for Clue {
@@ -168,11 +177,12 @@ impl Hint {
         [
             (Red, self.red()),
             (Green, self.green()),
-            (Blue, self.blue())
-        ].into_iter()
-            .filter(|(cell, hint)| *hint)
-            .map(|(cell, hint)| cell)
-            .choose(rng)
+            (Blue, self.blue()),
+        ]
+        .into_iter()
+        .filter(|(_cell, hint)| *hint)
+        .map(|(cell, _hint)| cell)
+        .choose(rng)
     }
 
     fn cell(&self, cell: Cell) -> bool {

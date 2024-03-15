@@ -22,7 +22,7 @@ pub enum PositionError {
 
 impl Position {
     pub fn zero() -> Self {
-        ZERO.clone()
+        ZERO
     }
 
     pub fn new(coordinates: Coordinates) -> Result<Self, PositionError> {
@@ -147,11 +147,11 @@ impl Direction {
     }
 
     pub fn all() -> [Direction; 6] {
-        DIRECTIONS.clone()
+        DIRECTIONS
     }
 
     pub fn normalized() -> [Direction; 3] {
-        NORMALIZED_DIRECTIONS.clone()
+        NORMALIZED_DIRECTIONS
     }
 
     // Returns a tuple of positive, neutral and negative axes.
@@ -237,12 +237,12 @@ impl From<Direction> for Position {
         use Direction::*;
 
         match direction {
-            XY => XY_UNIT.clone(),
-            XZ => XZ_UNIT.clone(),
-            YX => YX_UNIT.clone(),
-            YZ => YZ_UNIT.clone(),
-            ZX => ZX_UNIT.clone(),
-            ZY => ZY_UNIT.clone(),
+            XY => XY_UNIT,
+            XZ => XZ_UNIT,
+            YX => YX_UNIT,
+            YZ => YZ_UNIT,
+            ZX => ZX_UNIT,
+            ZY => ZY_UNIT,
         }
     }
 }
